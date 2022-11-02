@@ -28,6 +28,27 @@ void parse_input(std::ifstream &read, std::vector<std::string> &files,
 
 /* Check if the number x is a perfect power of e */
 bool check_perfect_number(int n, int e) {
+    // if (n == 1) {
+    //     return true;
+    // }
+
+    // for (int i = 2; i * i < n; i++) {
+    //     int x = i;
+    //     int p = i;
+    //     for (int j = 1; j < e; j++) {
+    //         x = x * p;
+    //         if (x >= INT32_MAX / e) {
+    //             break;
+    //         }
+    //     }
+    //     if (x == n) {
+    //         return true;
+    //     }
+    // }
+    // return false;
+
+
+
     std::unordered_map<int, int> prime_fact;
 
     int p = 2;
@@ -55,6 +76,7 @@ bool check_perfect_number(int n, int e) {
     }
     return true;
 }
+
 
 /* Mapper function for thread execution */
 std::unordered_map<int, std::vector<int>> mapper(std::string file, int thread_id, int exponents) {
