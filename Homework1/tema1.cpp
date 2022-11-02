@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include "utils.h"
 #include "tema1.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -26,60 +27,33 @@ void parse_input(std::ifstream &read, std::vector<std::string> &files,
     }
 }
 
-/* Check if the number x is a perfect power of e */
-bool check_perfect_number(int n, int e) {
-    // if (n == 1) {
-    //     return true;
-    // }
-
-    // for (int i = 2; i * i < n; i++) {
-    //     int x = i;
-    //     int p = i;
-    //     for (int j = 1; j < e; j++) {
-    //         x = x * p;
-    //         if (x >= INT32_MAX / e) {
-    //             break;
-    //         }
-    //     }
-    //     if (x == n) {
-    //         return true;
-    //     }
-    // }
-    // return false;
-
-
-
-    std::unordered_map<int, int> prime_fact;
-
-    int p = 2;
-    while(n % p == 0) {
-        prime_fact[p]++;
-        n = n / p;
+// Compute all perfect powers
+std::unordered_map<int, std::vector<int>> precompute(int reducers) {
+    std::unordered_map<int, std::vector<int>> perfect_powers;
+    for (int i = 2; i <= reducers + 1; i++) {
+        std::vector<int> perfect_power;
+        perfect_powers[i] = perfect_power;
     }
 
-    for (p = 3; p * p <= n; p = p + 2) {
-        while(n % p == 0) {
-            prime_fact[p]++;
-            n = n / p;
+    for (int i = 2; i < INT32_MAX / (reducers + 1); i++) {
+        long x = i;
+        int p = i;
+        for (int j = 2; j <= reducers + 1; j++) {
+            x = x * p;
+            if (x >= INT32_MAX) {
+                break;
+            }
+            perfect_powers[j].push_back(x);
         }
     }
-
-    if (n > 2) {
-        prime_fact[n]++;
-    }
-
-    /* For each key in the map, his value should be divisible with e */
-    for (auto it = prime_fact.begin(); it != prime_fact.end(); it++) {
-        if (it -> second % e != 0) {
-            return false;
-        }
-    }
-    return true;
+    return perfect_powers;
 }
 
 
+
 /* Mapper function for thread execution */
-std::unordered_map<int, std::vector<int>> mapper(std::string file, int thread_id, int exponents) {
+std::unordered_map<int, std::vector<int>> mapper(std::string file, int thread_id, int exponents,
+                                                std::unordered_map<int, std::vector<int>> &perfect_powers) {
 
     // Init the map of lists of perfect powers
     std::unordered_map<int, std::vector<int>> perfect_numbers;
@@ -97,42 +71,21 @@ std::unordered_map<int, std::vector<int>> mapper(std::string file, int thread_id
     while(getline(read, line)) {
         int x = stoi(line);
 
-        for (int e = 2; e <= exponents; e++) {
-            if (check_perfect_number(x, e) == true || x == 1) {
-                perfect_numbers[e].push_back(x);
+        for (int i = 2; i <= exponents; i++) {
+            std::vector<int> perfect_power = perfect_powers[i];
+            if (x == 1 || binary_search(perfect_power.begin(), perfect_power.end(), x)) {
+                perfect_numbers[i].push_back(x);
             }
         }
     }
     read.close();
-
     return perfect_numbers;
 }
 
 // Each reducer thread will take the correspondent exponent
 void reducer(int exponent, vector<unordered_map<int, vector<int>>> *mappers_result) {
-
-    std::cout << "Verificare Intrare Exponent: " << exponent << "\n";
-    if (exponent == 2) {
-        for (int i = 0; i < mappers_result->size(); i++) {
-            unordered_map<int, vector<int>> mapper_result = mappers_result->at(i);
-
-            std::cout << "Rezultatul unui nou thread: \n";
-            for (auto it = mapper_result.begin(); it != mapper_result.end(); it++) {
-                int exp = it->first;
-                std::vector<int> numbers = it->second;
-
-                std::cout << "Exponent: " << exp << " : \n";
-                for (int x : numbers) {
-                    std::cout << x << " ";
-                }
-                std::cout << endl;
-            }
-            std::cout << "\n";
-        }
-    }
-
     unordered_set<int> unique_numbers;
-    for (int i = 0; i < mappers_result->size(); i++) {
+    for (unsigned long int i = 0; i < mappers_result->size(); i++) {
         unordered_map<int, vector<int>> mapper_result = mappers_result->at(i);
 
         // Search the exponent
@@ -162,6 +115,7 @@ void *thread_function(void *arg) {
         while (q->empty() == false) {
             pthread_mutex_lock(data->mutex);
             if (q->empty() == true) {
+                pthread_mutex_unlock(data->mutex);
                 break;
             }
             std::string file = q->front();
@@ -169,7 +123,7 @@ void *thread_function(void *arg) {
             pthread_mutex_unlock(data->mutex);
 
             std::unordered_map<int, std::vector<int>> thread_result = 
-                            mapper(file, data->id, data->reducer_threads + 1);
+                            mapper(file, data->id, data->reducer_threads + 1, data->perfect_powers);
             (*(data->mappers_result)).push_back(thread_result);        
         }
     }
@@ -202,6 +156,9 @@ int main(int argc, char *argv[]) {
     parse_input(read, files, q);
     read.close();
 
+    // Precompute all powers
+    std::unordered_map<int, std::vector<int>> perfect_powers = precompute(reducer_threads);
+
     // Create threads
     int threads_number = mapper_threads + reducer_threads;
     pthread_t threads[threads_number];
@@ -224,6 +181,7 @@ int main(int argc, char *argv[]) {
         arg.reducer_threads = reducer_threads;
         arg.mapper_threads = mapper_threads;
         arg.mappers_result = &mappers_results;
+        arg.perfect_powers = perfect_powers;
         arg.barrier = &barrier;
         threads_arg[i] = arg;
         
