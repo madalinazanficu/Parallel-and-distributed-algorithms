@@ -17,7 +17,7 @@ struct thread_arg_t
 	void* files;								
 	std::queue<std::string>* q;
 	std::vector<std::unordered_map<int, std::vector<int>>> *mappers_result;
-	std::unordered_map<int, std::vector<int>> perfect_powers;
+	std::unordered_map<int, std::vector<int>> *perfect_powers;
 };
 
 

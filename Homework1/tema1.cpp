@@ -52,8 +52,8 @@ std::unordered_map<int, std::vector<int>> precompute(int reducers) {
 
 
 /* Mapper function for thread execution */
-std::unordered_map<int, std::vector<int>> mapper(std::string file, int thread_id, int exponents,
-                                                std::unordered_map<int, std::vector<int>> &perfect_powers) {
+std::unordered_map<int, std::vector<int>> mapper(std::string file, int exponents,
+                                                std::unordered_map<int, std::vector<int>> *perfect_powers) {
 
     // Init the map of lists of perfect powers
     std::unordered_map<int, std::vector<int>> perfect_numbers;
@@ -72,8 +72,7 @@ std::unordered_map<int, std::vector<int>> mapper(std::string file, int thread_id
         int x = stoi(line);
 
         for (int i = 2; i <= exponents; i++) {
-            std::vector<int> perfect_power = perfect_powers[i];
-            if (x == 1 || binary_search(perfect_power.begin(), perfect_power.end(), x)) {
+            if (x == 1 || binary_search((*perfect_powers)[i].begin(), (*perfect_powers)[i].end(), x)) {
                 perfect_numbers[i].push_back(x);
             }
         }
@@ -123,8 +122,11 @@ void *thread_function(void *arg) {
             pthread_mutex_unlock(data->mutex);
 
             std::unordered_map<int, std::vector<int>> thread_result = 
-                            mapper(file, data->id, data->reducer_threads + 1, data->perfect_powers);
-            (*(data->mappers_result)).push_back(thread_result);        
+                            mapper(file, data->reducer_threads + 1, data->perfect_powers);
+            
+            pthread_mutex_lock(data->mutex);
+            (*(data->mappers_result)).push_back(thread_result);
+            pthread_mutex_unlock(data->mutex);       
         }
     }
     // Wait until all mapper threads finish the execution
@@ -175,13 +177,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < threads_number; i++) {
         thread_arg_t arg;
         arg.id = i;
+        arg.reducer_threads = reducer_threads;
+        arg.mapper_threads = mapper_threads;
         arg.files = &files;
         arg.q = &q;
         arg.mutex = &mutex;
-        arg.reducer_threads = reducer_threads;
-        arg.mapper_threads = mapper_threads;
         arg.mappers_result = &mappers_results;
-        arg.perfect_powers = perfect_powers;
+        arg.perfect_powers = &perfect_powers;
         arg.barrier = &barrier;
         threads_arg[i] = arg;
         
