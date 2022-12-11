@@ -1,14 +1,33 @@
 import java.io.IOException;
-import java.util.stream.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.nio.file.*;
-
+import java.io.File;
+import java.io.FileWriter;
 
 public class Main {
     static String orders;
     static String orderProducts;
-    static Path ordersPath;
+    
     static Integer P;
+    static Integer N = 0;
     static Integer count;
+    static ExecutorService pool;
+    
+    static Path ordersPath;
+    static long ordersSize;
+
+    static File productsFile;
+    static Path productsPath;
+    static long productsSize;
+
+    static String ordersOut;
+    static String productsOut;
+    static FileWriter writerOrders;
+    static FileWriter writerProducts;
+
+    static Integer ordersLock = 0;
+    static Integer productsLock = 0;
 
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
@@ -19,10 +38,24 @@ public class Main {
         orders = args[0] + "/orders.txt";
         orderProducts = args[0] + "/order_products.txt";
         P = Integer.valueOf(args[1]);
+
+        // Create the output directory
+        // String number = args[0].substring(args[0].length() - 1);
+        ordersOut = "orders_out.txt";
+        productsOut = "order_products_out.txt";
+        writerOrders = new FileWriter(ordersOut);
+        writerProducts = new FileWriter(productsOut);
         
-        // Count the number of commands
+        // Create the orderProducts file
+        productsFile = new File(orders);
+        
+        // Count the number of commands from orders.txt
         ordersPath = Paths.get(orders);
-        long ordersSize = Files.lines(ordersPath).count();
+        ordersSize = Files.lines(ordersPath).count();
+
+        // Count the number of products from orderProducts.txt
+        productsPath = Paths.get(orderProducts);
+        productsSize = Files.lines(productsPath).count();
         
         // Distribute equally the number of commands to P theards
         Thread[] threads = new Thread[P];
@@ -31,7 +64,10 @@ public class Main {
             count  = division.intValue();
         } else {
             count = 1;
-        }
+        }     
+
+        // Initialize the thread pool with P workers
+        pool = Executors.newFixedThreadPool(P);
 
         for (int i = 0; i < P; i++) {
         
@@ -43,21 +79,24 @@ public class Main {
                 if (end >= ordersSize) {
                     end = ordersSize - 1;
                 }
-            
+                N++;
                 threads[i] = new MyThread(start, end, i);
                 threads[i].start();
             }
         }
-        
-        //File ordersFile = new File(orders);
-        //File productsFile = new File(orderProducts);
-
-        
-
-        String line;
-        try (Stream<String> lines = Files.lines(Paths.get(orders))) {
-            line = lines.skip(1).findFirst().get();
-            System.out.println(line);
+        for (int i = 0; i < N; i++) {
+            try {
+                threads[i].join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+
+        // Close the thread pool
+        pool.shutdownNow();
+
+        // Close the writer
+        writerOrders.close();
+        writerProducts.close();
     }
 }
