@@ -20,11 +20,11 @@ public class MyTask implements Runnable {
     public void run() {
 
         // End of file
-        if (fileIndex >= Main.productsSize) {
+        if (fileIndex >= Tema2.productsSize) {
             return;
         }
     
-        try (Stream<String> productLines = Files.lines(Paths.get(Main.orderProducts))) {
+        try (Stream<String> productLines = Files.lines(Paths.get(Tema2.orderProducts))) {
             String productLine = productLines.skip(fileIndex).findFirst().get();
 
             String[] productParts = productLine.split(",");
@@ -41,16 +41,16 @@ public class MyTask implements Runnable {
             }
             // Submit a new child task
             MyTask task = new MyTask(order, semaphore, fileIndex + 1);
-            Main.pool.submit(task);
+            Tema2.pool.submit(task);
             
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
     public void ProductShipped(String orderId, String productId) {
-        synchronized(Main.writerProducts) {
+        synchronized(Tema2.writerProducts) {
             try {
-                Main.writerProducts.write(orderId + "," + productId +  "," + "shipped" + "\n");
+                Tema2.writerProducts.write(orderId + "," + productId +  "," + "shipped" + "\n");
             } catch (IOException e) {
                 e.printStackTrace();
             }

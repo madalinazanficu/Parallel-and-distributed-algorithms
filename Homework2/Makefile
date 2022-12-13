@@ -1,11 +1,11 @@
 TARGETS=main
 build: $(TARGETS)
 
-main: Main.java MyThread.java MyTask.java
+main: Tema2.java MyThread.java MyTask.java
 	javac $^
 
 run_main:
-	java Main
+	java Tema2
 
 clean:
 	rm -f *.class

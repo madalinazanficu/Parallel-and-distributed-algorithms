@@ -5,7 +5,7 @@ import java.nio.file.*;
 import java.io.File;
 import java.io.FileWriter;
 
-public class Main {
+public class Tema2 {
     static String orders;
     static String orderProducts;
     

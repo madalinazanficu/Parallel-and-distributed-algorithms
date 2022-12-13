@@ -26,8 +26,8 @@ public class MyThread extends Thread {
      */
     @Override
     public void run() {
-        try (Stream<String> commandStream = Files.lines(Main.ordersPath)
-                                                 .skip(start).limit(Main.count)) {
+        try (Stream<String> commandStream = Files.lines(Tema2.ordersPath)
+                                                 .skip(start).limit(Tema2.count)) {
 
             for (String command : (Iterable<String>) commandStream::iterator) {
                 String[] commadParts = command.split(",");
@@ -47,7 +47,7 @@ public class MyThread extends Thread {
                 
                     // Sumbit the first task for the current order
                     MyTask task = new MyTask(orderdsIds.get(i), semaphores.get(i), 0);
-                    Main.pool.submit(task);
+                    Tema2.pool.submit(task);
 
                     // Wait for the products to be delivered
                     semaphores.get(i).acquire();
@@ -64,9 +64,9 @@ public class MyThread extends Thread {
     }
 
     public void CommandCompleted(String orderId, Integer quantity) {
-        synchronized(Main.writerOrders) {
+        synchronized(Tema2.writerOrders) {
             try {
-                Main.writerOrders.write(orderId + "," + quantity +  "," + "shipped" + "\n");
+                Tema2.writerOrders.write(orderId + "," + quantity +  "," + "shipped" + "\n");
             } catch (IOException e) {
                 e.printStackTrace();
             }
