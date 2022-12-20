@@ -1,56 +1,80 @@
 import java.nio.file.*;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.stream.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 
 
 public class MyTask implements Runnable {
     String order;
     Semaphore semaphore;
-    Integer fileIndex;
+    Integer allBytes;
+    ExecutorService pool;
+    FileWriter writerProducts;
+    String orderProducts;
 
     /* Used for sub-tasks */
-    public MyTask(String order, Semaphore semaphore, Integer fileIndex) {
+    public MyTask(String order, Semaphore semaphore, Integer fileIndex, 
+                ExecutorService pool, FileWriter writerProducts, 
+                String orderProducts) {
         this.order = order;
         this.semaphore = semaphore;
-        this.fileIndex = fileIndex;
+        this.allBytes = fileIndex;
+        this.pool = pool;
+        this.writerProducts = writerProducts;
+        this.orderProducts = orderProducts;
     }
+    
 
     @Override
     public void run() {
-
-        // End of file
-        if (fileIndex >= Tema2.productsSize) {
-            return;
-        }
-    
-        try (Stream<String> productLines = Files.lines(Paths.get(Tema2.orderProducts))) {
-            String productLine = productLines.skip(fileIndex).findFirst().get();
-
-            String[] productParts = productLine.split(",");
-            String orderId = productParts[0];
-            String productId = productParts[1];
-
-            if (orderId.equals(order)) {
-                
-                // The current product can be shipped
-                ProductShipped(orderId, productId);
-
-                // Release the parent task
-                semaphore.release();
+        try  {
+            BufferedReader reader = new BufferedReader(new FileReader(orderProducts));
+            reader.skip(allBytes);
+            String productLine = reader.readLine();
+            if (productLine == null) {
+                reader.close();
+                return;
             }
-            // Submit a new child task
-            MyTask task = new MyTask(order, semaphore, fileIndex + 1);
-            Tema2.pool.submit(task);
-            
-        } catch (IOException e) {
-            e.printStackTrace();
+
+            while (productLine != null) {
+                Integer bytesCount = productLine.getBytes().length;
+                allBytes += bytesCount + 1;
+
+                String orderId = productLine.split(",")[0];
+                String productId = productLine.split(",")[1];
+
+                if (orderId.equals(order)) {
+                    reader.close();
+                    // The current product can be shipped
+                    ProductShipped(orderId, productId);
+    
+                    // Release the parent task
+                    semaphore.release();
+
+                    MyTask task = new MyTask(order, semaphore, allBytes, 
+                                            pool, writerProducts, orderProducts);
+                    pool.submit(task);
+
+                    break;
+                } else {
+                    productLine = reader.readLine();
+                }
+            }
+        } catch (IOException e1) {
+            e1.printStackTrace();
         }
     }
+
     public void ProductShipped(String orderId, String productId) {
-        synchronized(Tema2.writerProducts) {
+        synchronized(writerProducts) {
             try {
-                Tema2.writerProducts.write(orderId + "," + productId +  "," + "shipped" + "\n");
+                writerProducts.write(orderId + "," + 
+                                    productId +  "," + 
+                                    "shipped" + "\n");
             } catch (IOException e) {
                 e.printStackTrace();
             }
