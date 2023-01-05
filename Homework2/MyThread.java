@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 // The current thread is responsible for landing tasks for orderds
 public class MyThread extends Thread {
 
-    ArrayList<String> orderdsIds = new ArrayList<>();
+    ArrayList<String> ordersIds = new ArrayList<>();
     ArrayList<Integer> quantities = new ArrayList<>();
     ArrayList<Semaphore> semaphores = new ArrayList<>();
     Integer start;
@@ -38,16 +38,15 @@ public class MyThread extends Thread {
     }
 
     /* Extract the commands assigned to the current thread
-        Read only the lines that are assigned to this thread
-        Read from orderProducts file and searching products 
-        tasks to the thread pool */
+     * Read only the lines that are assigned to this thread 
+    */
     @Override
     public void run() {
         Integer startByte = this.start;
         Integer endByte = this.end;
 
         try (RandomAccessFile srcFile =  new RandomAccessFile(this.file, "r")) {
-            // Adjust the start byte to start on a new line
+            /* Adjust the start byte to start on a new line */
             if (startByte != 0) {
                 srcFile.seek(startByte - 1);
                 while (srcFile.read() != '\n') {
@@ -55,7 +54,7 @@ public class MyThread extends Thread {
                 }
             }
 
-            // Adjust the end byte at the end of a line
+            /* Adjust the end byte at the end of a line */
             srcFile.seek(endByte);
             if (srcFile.read() != '\n') {
                 while (srcFile.read() != '\n') {
@@ -64,7 +63,7 @@ public class MyThread extends Thread {
                 endByte++;
             }
 
-            // Read the commands
+            /* Read the orders from orders.txt */
             srcFile.seek(startByte);
             while (srcFile.getFilePointer() < endByte) {
                 String command = srcFile.readLine();
@@ -74,21 +73,23 @@ public class MyThread extends Thread {
                 Integer quantity = Integer.valueOf(commadParts[1]);
                 Semaphore semaphore = new Semaphore(-(quantity - 1));
 
-                orderdsIds.add(orderId);
+                ordersIds.add(orderId);
                 quantities.add(quantity);
                 semaphores.add(semaphore);
             }
 
-            for (int i = 0; i < orderdsIds.size(); i++) {
+            /* Land searching products tasks to other workers */
+            for (int i = 0; i < ordersIds.size(); i++) {
                 if (quantities.get(i) > 0) {
-                    MyTask task = new MyTask(orderdsIds.get(i), semaphores.get(i), 
-                                            0, pool, writerProducts, orderProducts);
+                    MyTask task = new MyTask(ordersIds.get(i), semaphores.get(i), 
+                                            0, pool, 
+                                            writerProducts, orderProducts);
                     pool.submit(task);
+                    /* Wait until the order is ready */
                     semaphores.get(i).acquire();
-                    CommandCompleted(orderdsIds.get(i), quantities.get(i));
+                    OrderCompleted(ordersIds.get(i), quantities.get(i));
                 }
             }
-            
             srcFile.close();
         } catch(IOException e) {
             e.printStackTrace();
@@ -97,16 +98,17 @@ public class MyThread extends Thread {
         }
     }
 
-    public void CommandCompleted(String orderId, Integer quantity) {
+    public void OrderCompleted(String orderId, Integer quantity) {
         synchronized(writerOrders) {
             try {
-                writerOrders.write(orderId + "," + quantity +  "," + "shipped" + "\n");
+                writerOrders.write(orderId + "," + 
+                                  quantity +  "," + 
+                                  "shipped" + "\n");
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
-    
 }
     
 
