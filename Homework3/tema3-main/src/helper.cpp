@@ -31,3 +31,17 @@ int maxx(int a, int b) {
     }
     return b;
 }
+
+int count_workers(int P, int **topology)
+{
+    // Find the number of workers
+    int workers = 0;
+    for (int i = 0; i < leaders; i++) {
+        for (int j = 0; j < P; j++) {
+            if (topology[i][j] != 0) {
+                workers++;
+            }
+        }
+    }
+    return workers;
+}

@@ -22,5 +22,6 @@ bool is_leader(int rank);
 bool is_worker(int rank);
 int maxx(int a, int b);
 int minn(int a, int b);
+int count_workers(int P, int **topology);
 
 #endif  // __HELPER__
