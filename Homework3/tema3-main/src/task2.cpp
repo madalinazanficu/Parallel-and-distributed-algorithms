@@ -15,8 +15,9 @@ int count_workers(int P, int **topology)
     return workers;
 }
 
-void send_to_worker(int start, int end, int dst, int *v, int N)
+void send_to_worker(int start, int end, int dst, int *v, int N, int rank)
 {
+    print_message(rank, dst);
     MPI_Send(&start, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
     MPI_Send(&end, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
     MPI_Send(&N, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
@@ -32,6 +33,7 @@ void send_to_next_leader(int N, int workload, int rank,
                             int start, int end, int *v)
 {
     int dst = (rank + 1) % leaders;
+    print_message(rank, dst);
     MPI_Send(&workload, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
     MPI_Send(&start, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
     MPI_Send(&N, 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
@@ -47,12 +49,13 @@ int *recv_from_prev_leader(int *N, int *workload,
 {
     MPI_Status status;
     int src = (rank - 1) % leaders;
+    if (rank == 0) src = 3;
     MPI_Recv(workload, 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
     MPI_Recv(start, 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
     MPI_Recv(N, 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
 
     // Receive the entire vector from the previous leader
-    int *v = (int *) malloc(*N * sizeof(int));
+    int *v = (int *) calloc(*N, sizeof(int));
     for(int i = 0; i < *N; i++) {
         MPI_Recv(&v[i], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
     }
@@ -64,7 +67,7 @@ void distribute_work(int rank, int P, int **topology, int *N,
 {
     if (rank == P0) {
         // Create the vector
-        int *v = (int *) malloc(*N * sizeof(int));
+        int *v = (int *) calloc(*N, sizeof(int));
         for (int k = 0; k < *N; k++) {
             v[k] = *N - k - 1;
         }
@@ -77,7 +80,7 @@ void distribute_work(int rank, int P, int **topology, int *N,
         int start = 0;
         int end = start + workload - 1;
         for (unsigned long int i = 0; i < cluster.size(); i++) {
-            send_to_worker(start, end, cluster[i], v, *N);
+            send_to_worker(start, end, cluster[i], v, *N, rank);
             start = end + 1;
             end = start + workload - 1;
         }
@@ -87,7 +90,6 @@ void distribute_work(int rank, int P, int **topology, int *N,
 
         // Ring structure is complete: P3 just finished
         int *recv_v = recv_from_prev_leader(N, &workload, rank, &start, &end);
-        
     } else if (rank == P1 || rank == P2 || rank == P3) {
         int workload;
         int start, end;
@@ -97,7 +99,7 @@ void distribute_work(int rank, int P, int **topology, int *N,
         // Distribute the work to cluster's workers
         end = start + workload - 1;
         for (unsigned long int i = 0; i < cluster.size(); i++) {
-            send_to_worker(start, end, cluster[i], v, *N);
+            send_to_worker(start, end, cluster[i], v, *N, rank);
             start = end + 1;
             end = start + workload - 1;
 
@@ -126,8 +128,9 @@ int *receive_from_leader(int *N, int my_leader, int *start, int *end)
 }
 
 
-void send_to_my_leader(int my_leader, int start, int end, int *recv_vec)
+void send_to_my_leader(int my_leader, int start, int end, int *recv_vec, int rank)
 {
+    print_message(rank, my_leader);
     MPI_Send(&start, 1, MPI_INT, my_leader, 0, MPI_COMM_WORLD);
     MPI_Send(&end, 1, MPI_INT, my_leader, 0, MPI_COMM_WORLD);
     for (int i = start; i <= end; i++) {
@@ -141,7 +144,7 @@ int* receive_from_worker(int rank, int src, int *start, int *end, int N)
     MPI_Recv(start, 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
     MPI_Recv(end, 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
 
-    int *recv_vec = (int *) malloc(N * sizeof(int));
+    int *recv_vec = (int *) calloc(N, sizeof(int));
     for (int i = *start; i <= *end; i++) {
         int a;
         MPI_Recv(&a, 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
@@ -154,7 +157,6 @@ void execute_computation(int rank, int P, int **topology, int *N,
                         vector<int> &cluster, int my_leader)
 {
     MPI_Status status;
-
     // Workers execute the computation and send the result to the leader
     if (is_worker(rank) == true) {
         int start, end;
@@ -166,11 +168,11 @@ void execute_computation(int rank, int P, int **topology, int *N,
         }
 
         // Each worker will send the result to his leader
-        send_to_my_leader(my_leader, start, end, recv_vec);
+        send_to_my_leader(my_leader, start, end, recv_vec, rank);
     }
 
     // Leader receives the results from the workers and merges them
-    int *v = (int *) malloc(*N * sizeof(int));
+    int *v = (int *) calloc(*N, sizeof(int));
     int start, end;
     if (is_leader(rank) == true) {
         for (int i = 0; i < cluster.size(); i++) {
@@ -179,48 +181,52 @@ void execute_computation(int rank, int P, int **topology, int *N,
             // Merge the results
             for (int j = start; j <= end; j++) {
                 v[j] = recv_v[j];
-                cout << v[j] << " ";
             }
         }
     }
 
-    // // Complete the results on the ring structure
-    // if (rank == P0) {
-    //     int dst = (rank + 1) % leaders;
-    //     for (int i = 0; i <= *N; i++) {
-    //         MPI_Send(&v[i], 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
-    //     }
+    // Complete the results on the ring structure
+    if (rank == P0) {
+        int dst = (rank + 1) % leaders;
+        print_message(rank, dst);
+        for (int i = 0; i < *N; i++) {
+            MPI_Send(&v[i], 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
+        }
+        int src = (rank - 1) % leaders;
+        if (rank == 0) src = 3;
+        int *v_recv = (int *) calloc(*N, sizeof(int));
+        for (int i = 0; i < *N; i++) {
+            MPI_Recv(&v_recv[i], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
+        }
 
-    //     int src = (rank - 1) % leaders;
-    //     int *v_recv = (int *) malloc(*N * sizeof(int));
-    //     MPI_Recv(v_recv, *N, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
 
+        // Afisare finala
+        cout << "Rezultat: ";
+        for (int i = 0; i < *N; i++) {
+            cout << v_recv[i] << " ";
+        }
 
-    //     // Afisare finala
-    //     cout << "Rezultat: ";
-    //     for (int i = 0; i < *N; i++) {
-    //         cout << v_recv[i] << " ";
-    //     }
+    } else if (rank == P1 || rank == P2 || rank == P3) {
+        int src = (rank - 1) % leaders;
+        if (rank == 0) src = 3;
+        int *v_recv = (int *) calloc(*N, sizeof(int));
 
-    // } else {
-    //     int src = (rank - 1) % leaders;
-    //     int *v_recv = (int *) malloc(*N * sizeof(int));
+        for (int i = 0; i < *N; i++) {
+            MPI_Recv(&v_recv[i], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
+        }
 
-    //     for (int i = 0; i < *N; i++) {
-    //         MPI_Recv(&v_recv[i], 1, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
-    //     }
+        // Merge the results
+        for (int j = 0; j < *N; j++) {
+            if (v[j] == 0) {
+                v[j] = v_recv[j];
+            }
+        }
 
-    //     // Merge the results
-    //     for (int j = 0; j < *N; j++) {
-    //         if (v[j] == 0) {
-    //             v[j] = v_recv[j];
-    //         }
-    //     }
-
-    //     int dst = (rank + 1) % leaders;
-    //     for (int i = 0; i < *N; i++) {
-    //         MPI_Send(&v[i], 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
-    //     }
-    // }
+        int dst = (rank + 1) % leaders;
+        print_message(rank, dst);
+        for (int i = 0; i < *N; i++) {
+            MPI_Send(&v[i], 1, MPI_INT, dst, 0, MPI_COMM_WORLD);
+        }
+    }
 
 }
