@@ -77,7 +77,7 @@ int main(int argc, char * argv[]) {
 
 
     if (comm_err == 0) {
-        int **topology = task1(rank, P, cluster, my_leader);
+        int **topology = get_topology_task1(rank, P, cluster, my_leader);
         distribute_work(rank, P, topology, &N, cluster, my_leader);
         execute_computation(rank, P, topology, &N, cluster, my_leader);
     } else if (comm_err == 1) {

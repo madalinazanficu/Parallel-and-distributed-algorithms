@@ -19,8 +19,6 @@ void distribute_work(int rank, int P, int **topology, int *N,
             v[k] = *N - k - 1;
         }
         int workers = count_workers(P, topology);
-
-        // Workload for each worker
         int workload = ceil((double)*N / workers);
 
         // Send indexes and a partition of the vector to each worker
@@ -37,7 +35,7 @@ void distribute_work(int rank, int P, int **topology, int *N,
         send_to_next_leader(*N, workload, rank, start, end, v, dst);
 
         // Ring structure is complete: P3 just finished
-        int *recv_v = recv_from_prev_leader(N, &workload, rank, &start, &end, src);
+        int *v_recv = recv_from_prev_leader(N, &workload, rank, &start, &end, src);
 
     } else if (rank == P1 || rank == P2 || rank == P3) {
         int workload;
@@ -68,15 +66,15 @@ void execute_computation(int rank, int P, int **topology, int *N,
     // Workers execute the computation and send the result to the leader
     if (is_worker(rank) == true) {
         int start, end;
-        int *recv_vec = receive_from_leader(N, my_leader, &start, &end);
+        int *v_recv = receive_from_leader(N, my_leader, &start, &end);
 
         // Each worker will do the computation
         for (int i = start; i <= end; i++) {
-            recv_vec[i] = recv_vec[i] * 5;
+            v_recv[i] = v_recv[i] * 5;
         }
 
         // Each worker will send the result to his leader
-        send_to_my_leader(my_leader, start, end, recv_vec, rank);
+        send_to_my_leader(my_leader, start, end, v_recv, rank);
     }
 
     // Leader receives the results from the workers and merges them
@@ -84,11 +82,11 @@ void execute_computation(int rank, int P, int **topology, int *N,
     int start, end;
     if (is_leader(rank) == true) {
         for (int i = 0; i < cluster.size(); i++) {
-            int *recv_v = receive_from_worker(rank, cluster[i], &start, &end, *N);
+            int *v_recv = receive_from_worker(rank, cluster[i], &start, &end, *N);
 
             // Merge the results
             for (int j = start; j <= end; j++) {
-                v[j] = recv_v[j];
+                v[j] = v_recv[j];
             }
         }
     }

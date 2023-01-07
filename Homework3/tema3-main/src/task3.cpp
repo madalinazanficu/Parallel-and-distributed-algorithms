@@ -1,5 +1,15 @@
 #include "task3.h"
 
+
+
+int **get_topology_task3(int rank, int P, int my_leader, 
+                        std::vector<int> cluster)
+{
+    int **topology = get_topology_generic(rank, P, my_leader, cluster, 
+                        leaders_collab_round0, leader_colllab_round1);
+    return topology;
+}
+
 /*
 * P0-> P3 -> P2 -> P1
 * Each leader sends his topology to the next one
@@ -77,65 +87,8 @@ void leader_colllab_round1(int rank, int **topology, int P, int **recv_topology)
     } 
 }
 
-int **get_topology_task3(int rank, int P, int my_leader, 
-                        std::vector<int> cluster)
-{
-
-    int **topology = get_topology_generic(rank, P, my_leader, cluster, 
-                        leaders_collab_round0, leader_colllab_round1);
-    return topology;
-}
-
-// int **get_topology(int rank, int P, int my_leader, std::vector<int> cluster, int task)
-// {
-//     int **topology = (int **) malloc(sizeof(int*) * 4);
-//     int **recv_topology = (int **) malloc(sizeof(int*) * 4);
-
-//     for (int i = 0; i < leaders; i++) {
-// 		topology[i] = (int *) calloc(sizeof(int), P);
-//         recv_topology[i] = (int *) calloc(sizeof(int), P);
-//     }
-
-//     for (long unsigned int i = 0; i < cluster.size(); i++) {
-//         topology[rank][i] = cluster[i];
-//     }
-
-//     leaders_collab_round0(rank, topology, P, recv_topology);
-//     leader_colllab_round1(rank, topology, P, recv_topology);
-
-//     if (is_leader(rank) == true) {
-//         print_topology(rank, P, topology);
-//     }
-
-//     /* Stage 2: Send to workers */
-//     if (is_leader(rank) == true) {
-//         for (long unsigned int j = 0; j < cluster.size(); j++) {
-//             print_message(rank, cluster[j]);
-//             for (int i = 0; i < leaders; i++) {
-//                 MPI_Send(topology[i], P, MPI_INT, cluster[j], 0, MPI_COMM_WORLD);
-//             }
-//         }
-//     }
-
-//     if (is_worker(rank) == true) {
-//         MPI_Status status;
-//         for (int i = 0; i < leaders; i++) {
-//             MPI_Recv(topology[i], P, MPI_INT, my_leader, 0, MPI_COMM_WORLD, &status);
-//             // Update his topology with the received one
-//             for (int j = 0; j < P; j++) {
-//                 if (topology[i][j] == 0) {
-//                     topology[i][j] = recv_topology[i][j];
-//                 }
-//             }
-//         }
-//         print_topology(rank, P, topology);
-//     }
-//     return topology;
-// }
-
-
 void distribute(int rank, int P, int **topology, int *N, 
-                    vector<int> &cluster, int my_leader) {
+                        vector<int> &cluster, int my_leader) {
 
     if (rank == P0) {
         int *v = (int *) calloc(*N, sizeof(int));
@@ -173,8 +126,6 @@ void distribute(int rank, int P, int **topology, int *N,
             send_to_worker(start, end, cluster[i], v, *N, rank);
             start = end + 1;
             end = start + workload - 1;
-
-            // The end index of P3 might be out of bounds, due to ceil approximation
             if (end > *N) {
                 end = *N - 1;
             }
@@ -193,15 +144,15 @@ void computation(int rank, int P, int **topology, int *N,
     // Workers execute the computation and send the result to the leader
     if (is_worker(rank) == true) {
         int start, end;
-        int *recv_vec = receive_from_leader(N, my_leader, &start, &end);
+        int *v_recv = receive_from_leader(N, my_leader, &start, &end);
 
         // Each worker will do the computation
         for (int i = start; i <= end; i++) {
-            recv_vec[i] = recv_vec[i] * 5;
+            v_recv[i] = v_recv[i] * 5;
         }
 
         // Each worker will send the result to his leader
-        send_to_my_leader(my_leader, start, end, recv_vec, rank);
+        send_to_my_leader(my_leader, start, end, v_recv, rank);
     }
 
     // Leader receives the results from the workers and merges them
@@ -209,11 +160,11 @@ void computation(int rank, int P, int **topology, int *N,
     int start, end;
     if (is_leader(rank) == true) {
         for (long unsigned int i = 0; i < cluster.size(); i++) {
-            int *recv_v = receive_from_worker(rank, cluster[i], &start, &end, *N);
+            int *v_recv = receive_from_worker(rank, cluster[i], &start, &end, *N);
 
             // Merge the results
             for (int j = start; j <= end; j++) {
-                v[j] = recv_v[j];
+                v[j] = v_recv[j];
             }
         }
     }
