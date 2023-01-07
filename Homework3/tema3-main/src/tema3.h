@@ -9,6 +9,7 @@
 #include "task1.h"
 #include "task2.h"
 #include "helper.h"
+#include "task3.h"
 
 using namespace std;
 

@@ -43,7 +43,6 @@ void inform_workers(int rank, int &my_leader, std::vector<int> &cluster) {
         MPI_Status status;
         MPI_Recv(&my_leader, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
     }
-    //cout << "Rank " << rank << " has leader " << my_leader << endl;
 }
 
 
@@ -81,6 +80,10 @@ int main(int argc, char * argv[]) {
         int **topology = task1(rank, P, cluster, my_leader);
         distribute_work(rank, P, topology, &N, cluster, my_leader);
         execute_computation(rank, P, topology, &N, cluster, my_leader);
+    } else if (comm_err == 1) {
+        int **topology = get_topology_task3(rank, P, my_leader, cluster);
+        distribute(rank, P, topology, &N, cluster, my_leader);
+        computation(rank, P, topology, &N, cluster, my_leader);
     }
 
     MPI_Finalize();
