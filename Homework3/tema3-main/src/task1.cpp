@@ -5,7 +5,7 @@ int **get_topology_task1(int rank, int P,
                         std::vector<int> &cluster, int my_leader)
 {
     int **topology = get_topology_generic(rank, P, my_leader, cluster, 
-                                            ring_collab, ring_collab);
+                                            ring_collab, ring_collab, print_topology);
     return topology;
 }
 

@@ -11,7 +11,8 @@
 int **get_topology_generic(int rank, int P, int my_leader, 
                     std::vector<int> cluster,
                     void (*leaders_collab_round0)(int, int**, int, int**),
-                    void (*leaders_collab_round1)(int, int**, int, int**))
+                    void (*leaders_collab_round1)(int, int**, int, int**),
+                    void (*print_topology_f)(int, int, int **, int))
 {
     int **topology = (int **) malloc(sizeof(int*) * 4);
     int **recv_topology = (int **) malloc(sizeof(int*) * 4);
@@ -30,7 +31,8 @@ int **get_topology_generic(int rank, int P, int my_leader,
     leaders_collab_round1(rank, topology, P, recv_topology);
 
     if (is_leader(rank) == true) {
-        print_topology(rank, P, topology);
+        // print_topology(rank, P, topology);
+        print_topology_f(rank, P, topology, my_leader);
     }
 
     /* Stage 2: Send to workers */
@@ -56,7 +58,8 @@ int **get_topology_generic(int rank, int P, int my_leader,
                 }
             }
         }
-        print_topology(rank, P, topology);
+        // print_topology(rank, P, topology);
+        print_topology_f(rank, P, topology, my_leader);
     }
     return topology;
 }
@@ -168,7 +171,7 @@ int *receive_from_leader(int *N, int my_leader, int *start, int *end)
 // Helper functions
 // ________________________________________________________________
 
-void print_topology(int rank, int P, int **topology) {
+void print_topology(int rank, int P, int **topology, int my_parent) {
     cout << rank << " -> ";
     for (int i = 0; i < leaders; i++) {
         cout << i << ":";
@@ -215,6 +218,15 @@ int maxx(int a, int b) {
     }
     return b;
 }
+
+void merge_results(int *v, int *v_recv, int start, int end) {
+    for (int i = start; i <= end; i++) {
+        if (v[i] == 0) {
+            v[i] = v_recv[i];
+        }
+    }
+}
+
 
 int count_workers(int P, int **topology)
 {

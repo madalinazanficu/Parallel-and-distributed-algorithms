@@ -5,7 +5,7 @@
 // Communication logic 
 // ________________________________________________________________
 
-void distribute_work(int rank, int P, int **topology, int *N, 
+void distribute_task2(int rank, int P, int **topology, int *N, 
                     vector<int> &cluster, int my_leader)
 {
 
@@ -60,7 +60,7 @@ void distribute_work(int rank, int P, int **topology, int *N,
 }
 
 
-void execute_computation(int rank, int P, int **topology, int *N, 
+void computation_task2(int rank, int P, int **topology, int *N, 
                         vector<int> &cluster, int my_leader)
 {
     // Workers execute the computation and send the result to the leader

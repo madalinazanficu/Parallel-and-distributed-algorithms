@@ -78,12 +78,18 @@ int main(int argc, char * argv[]) {
 
     if (comm_err == 0) {
         int **topology = get_topology_task1(rank, P, cluster, my_leader);
-        distribute_work(rank, P, topology, &N, cluster, my_leader);
-        execute_computation(rank, P, topology, &N, cluster, my_leader);
+        distribute_task2(rank, P, topology, &N, cluster, my_leader);
+        computation_task2(rank, P, topology, &N, cluster, my_leader);
+
     } else if (comm_err == 1) {
         int **topology = get_topology_task3(rank, P, my_leader, cluster);
-        distribute(rank, P, topology, &N, cluster, my_leader);
-        computation(rank, P, topology, &N, cluster, my_leader);
+        distribute_task3(rank, P, topology, &N, cluster, my_leader);
+        computation_task3(rank, P, topology, &N, cluster, my_leader);
+
+    } else if (comm_err == 2) {
+        int **topology = get_topology_task4(rank, P, my_leader, cluster);
+        distribute_task4(rank, P, topology, &N, cluster, my_leader);
+        computation_task4(rank, P, topology, &N, cluster, my_leader);
     }
 
     MPI_Finalize();

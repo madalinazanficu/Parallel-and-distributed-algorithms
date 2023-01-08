@@ -20,7 +20,8 @@ using namespace std;
 int **get_topology_generic(int rank, int P, int my_leader, 
                     std::vector<int> cluster,
                     void (*leaders_collab_r0)(int, int**, int, int**),
-                    void (*leaders_collab_r1)(int, int**, int, int**));
+                    void (*leaders_collab_r1)(int, int**, int, int**),
+                    void (*print_topology_f)(int, int, int **, int));
 
 
 void send_to_worker(int start, int end, int dst, int *v, int N, int rank);
@@ -38,11 +39,12 @@ int *receive_from_leader(int *N, int my_leader, int *start, int *end);
 
 
 void print_message(int src, int dst);
-void print_topology(int rank, int P, int **topology);
+void print_topology(int rank, int P, int **topology, int my_parent);
 bool is_leader(int rank);
 bool is_worker(int rank);
 int maxx(int a, int b);
 int minn(int a, int b);
 int count_workers(int P, int **topology);
+void merge_results(int *v, int *v_recv, int start, int end);
 
 #endif  // __HELPER__
