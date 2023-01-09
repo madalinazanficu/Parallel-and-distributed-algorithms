@@ -31,7 +31,6 @@ int **get_topology_generic(int rank, int P, int my_leader,
     leaders_collab_round1(rank, topology, P, recv_topology);
 
     if (is_leader(rank) == true) {
-        // print_topology(rank, P, topology);
         print_topology_f(rank, P, topology, my_leader);
     }
 
@@ -58,7 +57,6 @@ int **get_topology_generic(int rank, int P, int my_leader,
                 }
             }
         }
-        // print_topology(rank, P, topology);
         print_topology_f(rank, P, topology, my_leader);
     }
     return topology;

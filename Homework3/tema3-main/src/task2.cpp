@@ -83,11 +83,7 @@ void computation_task2(int rank, int P, int **topology, int *N,
     if (is_leader(rank) == true) {
         for (int i = 0; i < cluster.size(); i++) {
             int *v_recv = receive_from_worker(rank, cluster[i], &start, &end, *N);
-
-            // Merge the results
-            for (int j = start; j <= end; j++) {
-                v[j] = v_recv[j];
-            }
+            merge_results(v, v_recv, start, end);
         }
     }
 
@@ -116,11 +112,7 @@ void computation_task2(int rank, int P, int **topology, int *N,
         MPI_Recv(v_recv, *N, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
 
         // Merge the results
-        for (int j = 0; j < *N; j++) {
-            if (v[j] == 0) {
-                v[j] = v_recv[j];
-            }
-        }
+        merge_results(v, v_recv, 0, *N - 1);
 
         int dst = (rank + 1) % leaders;
         print_message(rank, dst);
